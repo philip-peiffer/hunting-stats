@@ -2,61 +2,49 @@
 import random
 
 
-class PointCatNode:
+class ApplicantNode:
     """A node for the linked list. The node contains the point category and the adjusted number of applicants for
     that point cat (after accounting for point squaring)."""
 
-    def __init__(self, point_val: int, apps: int):
-        self.prev = None
-        self.next = None
-        self.apps = apps
+    def __init__(self, app_id: int, point_val: int):
+        self.app_id = app_id
         self.point_val = point_val
 
         if self.point_val == 0:
-            self.adj_apps = self.apps
+            self.apps = 1
         else:
-            self.adj_apps = (self.point_val ** 2) * self.apps
+            self.apps = (self.point_val ** 2)
 
 
-class PointCatLinkList:
-    """A linked list with each node representing a point category."""
+class AppBag:
+    """A data structure that represents a random bag of applicants."""
 
     def __init__(self):
-        self.head = None
+        self.bag = []
+        self.size = 0
 
-    def add_node(self, point_node: PointCatNode):
-        """Adds a node to the start of the linked list."""
-        if self.head is None:
-            self.head = point_node
-        else:
-            old_head = self.head
-            self.head = point_node
-            self.head.next = old_head
-            old_head.prev = self.head
+    def add_to_bag(self, applicant: ApplicantNode):
+        """Adds an applicant to the bag. NOTE - bag must be randomized by calling randomize_bag after adding all
+        applicants to the bag."""
+        self.bag.append(applicant)
+        self.size += 1
 
-    def delete_node(self, point_node: PointCatNode):
-        """Deletes a node from the linked list."""
-        prev_node = point_node.prev
+    def randomize_bag(self):
+        """Randomizes the applicants in the bag."""
+        # loop through the bag list, for every index create a new random index between 0 and list length. Swap the
+        # current element with the random index.
+        random.seed()
+        for curr_index in range(self.size):
+            rand_index = random.randint(0, self.size - 1)
+            curr_applicant = self.bag[curr_index]
+            swap_applicant = self.bag[rand_index]
+            self.bag[rand_index] = curr_applicant
+            self.bag[curr_index] = swap_applicant
 
-        # if prev_node is none, we're deleting the head
-        if prev_node is None:
-            self.head = point_node
-            point_node.prev = None
-
-        else:
-            prev_node.next = point_node.next
-            prev_node.next.prev = prev_node
-
-    def print_list(self):
-        """Prints the list in normal list format"""
-        curr_node = self.head
-        print("number of applicants: [", end='')
-        while curr_node is not None:
-            print("{}".format(curr_node.apps), end='')
-            if curr_node.next is not None:
-                print(", ", end='')
-            curr_node = curr_node.next
-        print("]")
+    def draw_from_bag(self, index: int):
+        """Returns an applicant ID from the bag. Index should be randomized when drawing from the bag to have a
+        true random draw."""
+        return self.bag[index]
 
 
 def analyze_trends(app_array: list):
@@ -73,50 +61,49 @@ class DrawSimul:
         self.tag = tag
         self.num_tags = num_tags
         self.expected_apps = expected_apps
-        self.apps_ll = self.init_ll(self.expected_apps)
+
+        # attribute to throw the applicant IDs into for the random drawing
+        self.apps_bag = AppBag()
+
+        # attribute to hold what IDs have been drawn from the bag already so we don't double draw
+        self.draw_ids = set()
 
         # attribute to hold the results of the dwgs (number of applicants selected in each point cat)
-        self.dwg_results = []
+        self.dwg_results = [0]*21
 
-    def init_ll(self, expected_apps: list):
-        """Initializes a linked list to store the data associated with expected_apps"""
-        linked_list = PointCatLinkList()
+    def draw_rand_id(self):
+        """Draws a random ID from the apps_bag. Keeps drawing until an ID that hasn't been drawn gets drawn."""
+        random.seed()
+        rand_index = random.randint(0, self.apps_bag.size)
+        rand_applicant = self.apps_bag.draw_from_bag(rand_index)
 
-        for i, point_cat in enumerate(expected_apps):
-            new_node = PointCatNode(i, point_cat)
-            linked_list.add_node(new_node)
+        if rand_applicant.app_id in self.draw_ids:
+            return self.draw_rand_id()
 
-        return linked_list
+        self.dwg_results[rand_applicant.point_val] += 1
+        self.draw_ids.add(rand_applicant.app_id)
+
+    def add_applicants_to_bag(self):
+        """Adds all of the applicants to the bag for drawing."""
+        app_id = 0
+        for i, applicants in enumerate(self.expected_apps):
+            for app in range(applicants):
+                new_app = ApplicantNode(app_id, i)
+                while new_app.apps > 0:
+                    self.apps_bag.add_to_bag(new_app)
+                    new_app.apps -= 1
+                app_id += 1
+
+        for i in range(5):
+            self.apps_bag.randomize_bag()
 
     def run_drawing(self):
         """performs a drawing"""
-        self.dwg_results = [0] * 21
-        random.seed()
+        # add all the applicants to the bag
+        self.add_applicants_to_bag()
 
-        num_apps = 0
-        curr_node = self.apps_ll.head
-        while curr_node is not None:
-            num_apps += curr_node.adj_apps
-            curr_node = curr_node.next
-
-        for _ in range(self.num_tags):
-            rand_num = random.randint(1, num_apps)
-
-            # find the node that contains this number
-            curr_node = self.apps_ll.head
-            apps_up_to = curr_node.adj_apps
-            while apps_up_to < rand_num:
-                curr_node = curr_node.next
-                apps_up_to += curr_node.adj_apps
-
-            # add this node point_val to the dwg result
-            curr_node.apps -= 1
-            self.dwg_results[curr_node.point_val] += 1
-            if curr_node.point_val == 0:
-                curr_node.adj_apps -= 1
-                num_apps -= 1
-            else:
-                curr_node.adj_apps -= (curr_node.point_val ** 2)
-                num_apps -= (curr_node.point_val ** 2)
+        # draw random applicants from the bag until you hit the number of tags
+        for tag_num in range(1, self.num_tags + 1):
+            self.draw_rand_id()
 
         return self.dwg_results

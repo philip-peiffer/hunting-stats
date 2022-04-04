@@ -23,7 +23,7 @@ collection = db.drawing_results
 # tag_obj = TagObject('426-20', collection, 'elk', 2015, 2021, 'resident')
 # tag_obj.print_year_stats()
 
-tag_obj = TagObject('410-20', collection, 'elk', 2015, 2021, 'resident')
+tag_obj = TagObject('111-50', collection, 'moose', 2015, 2021, 'resident')
 # tag_obj.print_year_stats()
 
 # for cat in tag_obj.point_stats:
@@ -32,8 +32,23 @@ tag_obj = TagObject('410-20', collection, 'elk', 2015, 2021, 'resident')
 #         print(stats)
 
 drawing = DrawSimul(tag_obj.point_stats['num_apps'][6], tag_obj.tag, tag_obj.year_stats['num_tags'][6])
-drawing.apps_ll.print_list()
+results = drawing.run_drawing()
+percent_list = []
+for i, num in enumerate(results):
+    applicants = tag_obj.point_stats['num_apps'][6][i]
+    if applicants == 0:
+        applicants = 1
+    perc_succ = round(num / applicants * 100, 0)
+    percent_list.append(perc_succ)
+
 print("{:20}".format("drawing simulation:"), end='')
-print(drawing.run_drawing())
+print(results)
+
 print("{:20}".format("actual results:"), end='')
 print(tag_obj.point_stats['successes'][6])
+
+print("{:20}".format("Sim % Success: "), end='')
+print(percent_list)
+
+print("{:20}".format("Actual % Success: "), end='')
+print(tag_obj.point_stats['perc_succ'][6])
