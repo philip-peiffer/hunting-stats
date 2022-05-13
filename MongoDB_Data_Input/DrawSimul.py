@@ -74,7 +74,7 @@ class DrawSimul:
     def draw_rand_id(self):
         """Draws a random ID from the apps_bag. Keeps drawing until an ID that hasn't been drawn gets drawn."""
         random.seed()
-        rand_index = random.randint(0, self.apps_bag.size)
+        rand_index = random.randint(0, self.apps_bag.size - 1)
         rand_applicant = self.apps_bag.draw_from_bag(rand_index)
 
         if rand_applicant.app_id in self.draw_ids:

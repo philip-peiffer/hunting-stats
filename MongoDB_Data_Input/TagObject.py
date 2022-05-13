@@ -1,11 +1,12 @@
 # This file defines the object for the tag level queries/stats
 import pymongo
 from pprint import pprint
+import numpy
 
 class TagObject:
 
     def __init__(self, tag_num: str, doc_collection: pymongo.collection.Collection, species: str, start_year: int,
-                 end_year: int, residency: str):
+                 end_year: int, residency: str, simple_search=False):
         self.tag = tag_num
         self.doc_coll = doc_collection
         self.species = species.upper()
@@ -13,28 +14,43 @@ class TagObject:
         self.end = end_year
         self.residency = residency.upper()
         self.year_stats = {
-            'num_apps': [0]*(self.end - self.start + 1),
-            'num_tags': [0]*(self.end - self.start + 1),
-            'perc_succ': [0]*(self.end - self.start + 1),
-            'pts_per_app': [0]*(self.end - self.start + 1),
-            'adj_apps': [0]*(self.end - self.start + 1),
+            'avg pts per app': [0]*(self.end - self.start + 1),
+            'applicants': [0]*(self.end - self.start + 1),
+            'tags': [0]*(self.end - self.start + 1),
+            '% succ': [0]*(self.end - self.start + 1),
+            'pts spent': [0]*(self.end - self.start + 1),
         }
         self.point_stats = {
-            'num_apps': [[0]*21],
-            'successes': [[0]*21],
-            'tags_exp': [[0]*21],
-            'perc_succ': [[0]*21],
-            'point_share': [[0]*21],
-            'tag_share': [[0]*21],
-            'dwg_chance': [[0]*21]
+            'applicants': [0]*21,
+            'successes': [0]*21,
+            '% succ': [0]*21,
+            '% points': [0]*21,
+            '% tags': [0]*21,
         }
+        
+        self.exists = self.simple_search()
 
-        for _ in range(self.start, self.end):
-            for cat in self.point_stats:
-                self.point_stats[cat].append([0]*21)
+        if not simple_search:
+            self.query_year_stats()
+            self.query_point_stats()
+        
 
-        self.query_year_stats()
-        self.query_point_stats()
+    def simple_search(self):
+        """A simple search that returns "true" if the tag is found in the database, otherwise returns false"""
+        pipeline = [
+        # match the species, residency, and tag number (tag numbers are shared amongst species so need to match
+        # species as well)
+            {
+                '$match': {'species': self.species, 'tag_num': self.tag, 'residency': self.residency,
+                            'dwg_year': {'$gte': self.start, '$lte': self.end}
+                            }
+            },
+        ]
+        
+        results = self.doc_coll.aggregate(pipeline)
+        for result in results:
+            return True
+        return False
 
     def query_year_stats(self):
         """Returns a list of total applicants, number of successes, and a weighted average pts/app by year with index
@@ -73,16 +89,22 @@ class TagObject:
         # also need to assign each stat to the appropriate attribute under year_stats
         for stat in stats:
             year = int(stat['_id']['year'])
+            year_ind = year - self.start
 
-            self.year_stats['num_apps'][year - self.start] = stat['sum_apps']
-            self.year_stats['num_tags'][year - self.start] = stat['sum_tags']
-            self.year_stats['adj_apps'][year - self.start] = stat['sum_pts']
+            self.year_stats['applicants'][year_ind] = stat['sum_apps']
+            self.year_stats['tags'][year_ind] = stat['sum_tags']
+            self.year_stats['pts spent'][year_ind] = stat['sum_pts']
 
             # calculate % success pts/app and assign it to year_stats
-            perc_success = round(stat['sum_tags'] / stat['sum_apps'] * 100, 1)
-            pts_per_app = round(stat['sum_wa_pts'] / stat['sum_apps'], 1)
-            self.year_stats['perc_succ'][year - self.start] = perc_success
-            self.year_stats['pts_per_app'][year - self.start] = pts_per_app
+            if stat['sum_apps'] > 0:
+                perc_success = round(stat['sum_tags'] / stat['sum_apps'] * 100, 1)
+                pts_per_app = round(stat['sum_wa_pts'] / stat['sum_apps'], 1)
+            else:
+                perc_success = 0
+                pts_per_app = 0
+            self.year_stats['% succ'][year_ind] = perc_success
+            self.year_stats['avg pts per app'][year_ind] = pts_per_app
+
 
     def print_year_stats(self):
         """Prints all the year stats as rows"""
@@ -108,11 +130,11 @@ class TagObject:
         pipeline = [
             {
                 '$match': {'species': self.species, 'tag_num': self.tag, 'residency': self.residency,
-                           'dwg_year': {'$gte': self.start, '$lte': self.end}
+                           'dwg_year': {'$eq': self.end}
                            }
             },
             {
-                '$group': {'_id': {'year': '$dwg_year', 'points': '$point_val'},
+                '$group': {'_id': {'points': '$point_val'},
                            'sum_apps': {'$sum': '$applicants'},
                            'sum_tags': {'$sum': '$successes'},
                            'sum_pts': {'$sum': '$total_points'},
@@ -127,25 +149,23 @@ class TagObject:
 
         # now loop through pt_stats and map the stats to the point_stats dictionary
         for stat in pt_stats:
-            year_index = stat['_id']['year'] - self.start
             pts_index = stat['_id']['points']
 
             # calculate point share, tag share, % success for each point cat, and dwg chance
             pt_share = 100
-            dwg_chance = 100
-            if self.year_stats['adj_apps'][year_index] != 0:
-                pt_share = round(stat['sum_pts'] / self.year_stats['adj_apps'][year_index] * 100, 0)
+            if self.year_stats['pts spent'] != 0:
+                pt_share = round(stat['sum_pts'] / self.year_stats['pts spent'][self.end - self.start] * 100, 0)
 
-                dwg_chance = 'tbd'
+            tag_share = 0
+            if self.year_stats['tags'][self.end - self.start] != 0:
+                tag_share = round(stat['sum_tags'] / self.year_stats['tags'][self.end - self.start] * 100, 0)
+            
+            perc_success = 0
+            if stat['sum_apps'] != 0:
+                perc_success = round(stat['sum_tags'] / stat['sum_apps'] * 100, 0)
 
-            tag_share = round(stat['sum_tags'] / self.year_stats['num_tags'][year_index] * 100, 0)
-            tags_expected = round(pt_share / 100 * self.year_stats['num_tags'][year_index], 0)
-            perc_success = round(stat['sum_tags'] / stat['sum_apps'] * 100, 0)
-
-            self.point_stats['num_apps'][year_index][pts_index] = stat['sum_apps']
-            self.point_stats['successes'][year_index][pts_index] = stat['sum_tags']
-            self.point_stats['point_share'][year_index][pts_index] = pt_share
-            self.point_stats['tag_share'][year_index][pts_index] = tag_share
-            self.point_stats['tags_exp'][year_index][pts_index] = tags_expected
-            self.point_stats['dwg_chance'][year_index][pts_index] = dwg_chance
-            self.point_stats['perc_succ'][year_index][pts_index] = perc_success
+            self.point_stats['applicants'][pts_index] = stat['sum_apps']
+            self.point_stats['successes'][pts_index] = stat['sum_tags']
+            self.point_stats['% points'][pts_index] = pt_share
+            self.point_stats['% tags'][pts_index] = tag_share
+            self.point_stats['% succ'][pts_index] = perc_success
