@@ -1,7 +1,6 @@
 # This file defines the object for the tag level queries/stats
 import pymongo
-from pprint import pprint
-import numpy
+import PointStat
 
 class TagObject:
 
@@ -20,13 +19,7 @@ class TagObject:
             '% succ': [0]*(self.end - self.start + 1),
             'pts spent': [0]*(self.end - self.start + 1),
         }
-        self.point_stats = {
-            'applicants': [0]*21,
-            'successes': [0]*21,
-            '% succ': [0]*21,
-            '% points': [0]*21,
-            '% tags': [0]*21,
-        }
+        self.point_stats = []
         
         self.exists = self.simple_search()
 
@@ -124,8 +117,8 @@ class TagObject:
         print('\n')
 
     def query_point_stats(self):
-        """Queries all the points stats desired. Returns a dictionary with the stats as keys. The values are lists
-        where each element corresponds to a given point value."""
+        """Queries all the points stats desired. Converts the output to a point stat object and adds point stat object
+        to list of point stats."""
 
         pipeline = [
             {
@@ -147,25 +140,15 @@ class TagObject:
 
         pt_stats = self.doc_coll.aggregate(pipeline)
 
-        # now loop through pt_stats and map the stats to the point_stats dictionary
+        # now loop through pt_stats and create a new object for each result, add to point_stat list
         for stat in pt_stats:
-            pts_index = stat['_id']['points']
+            new_pts_obj = PointStat.PointStat(self.end, stat['_id']['points'])
+            new_pts_obj.set_apps(stat['sum_apps'])
+            new_pts_obj.set_successes(stat['sum_tags'])
+            new_pts_obj.set_perc_success()
+            self.point_stats.append(new_pts_obj)
 
-            # calculate point share, tag share, % success for each point cat, and dwg chance
-            pt_share = 100
-            if self.year_stats['pts spent'] != 0:
-                pt_share = round(stat['sum_pts'] / self.year_stats['pts spent'][self.end - self.start] * 100, 0)
-
-            tag_share = 0
-            if self.year_stats['tags'][self.end - self.start] != 0:
-                tag_share = round(stat['sum_tags'] / self.year_stats['tags'][self.end - self.start] * 100, 0)
-            
-            perc_success = 0
-            if stat['sum_apps'] != 0:
-                perc_success = round(stat['sum_tags'] / stat['sum_apps'] * 100, 0)
-
-            self.point_stats['applicants'][pts_index] = stat['sum_apps']
-            self.point_stats['successes'][pts_index] = stat['sum_tags']
-            self.point_stats['% points'][pts_index] = pt_share
-            self.point_stats['% tags'][pts_index] = tag_share
-            self.point_stats['% succ'][pts_index] = perc_success
+    def get_point_stats_dict_format(self):
+        for i, stat in enumerate(self.point_stats):
+            self.point_stats[i] = stat.convert_to_dict()
+        return self.point_stats

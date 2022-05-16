@@ -74,7 +74,7 @@ def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
         data = dict()
         data['tag'] = tag.tag
         data['year stats'] = tag.year_stats
-        data['point stats'] = tag.point_stats
+        data['point stats'] = tag.get_point_stats_dict_format()
         data['years'] = [num for num in range(2017, 2022)]
         data['point cats'] = [num for num in range(21)]
         return_list.append(data)
