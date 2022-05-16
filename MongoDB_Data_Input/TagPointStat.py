@@ -1,14 +1,11 @@
 # This program contains a class that represents a point stat object. It is the typical layout for point stats
 
-from contextlib import nullcontext
-
-
 class PointStat:
 
     def __init__(self, year: int, point_category: int):
         self.year = year
         self._points = point_category
-        self._adjusted_apps = 0
+        self._pts_spent = 0
         self._applicants = 0
         self._successes = 0
         self._percent_successful = 0
@@ -17,9 +14,9 @@ class PointStat:
         self._applicants = applicants
         
         if self._points == 0:
-            self._adjusted_apps = applicants
+            self._pts_spent = applicants
         else:
-            self._adjusted_apps = applicants * (self._points ** 2)
+            self._pts_spent = applicants * (self._points ** 2)
 
     def set_successes(self, num_successful):
         self._successes = num_successful
@@ -33,7 +30,7 @@ class PointStat:
             'year': self.year,
             'points': self._points,
             'applicants': self._applicants,
-            'adjusted apps': self._adjusted_apps,
+            'pts spent': self._pts_spent,
             'successes': self._successes,
             '% success': self._percent_successful
         }

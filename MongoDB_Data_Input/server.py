@@ -61,25 +61,14 @@ def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
     districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
     tag_nums = districts.get_tags(dist_choice)
 
-    # loop through the tags and create a tag object for each
+    # loop through the tags and run queries on each tag, adding the results to the tags list
     tags = []
     for result in tag_nums:
         tag_num = result['_id']['tag num']
         tag_obj = TagObject(tag_num, collection, spec_choice, 2017, 2021, res_choice)
-        tags.append(tag_obj)
+        tags.append(tag_obj.convert_to_dict())
 
-    # now loop through and pull out data from objects
-    return_list = []
-    for tag in tags:
-        data = dict()
-        data['tag'] = tag.tag
-        data['year stats'] = tag.year_stats
-        data['point stats'] = tag.get_point_stats_dict_format()
-        data['years'] = [num for num in range(2017, 2022)]
-        data['point cats'] = [num for num in range(21)]
-        return_list.append(data)
-
-    return {'data': return_list}
+    return {'data': tags}
 
 
 @app.route('/residency/<res_choice>/species/<spec_choice>/tags/<tag_id>')
