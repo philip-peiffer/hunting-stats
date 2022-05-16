@@ -1,4 +1,4 @@
 # added by PKLP
 .env
 ../.idea/
-scratch.py
+./scratch.py
