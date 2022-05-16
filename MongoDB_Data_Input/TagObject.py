@@ -98,7 +98,6 @@ class TagObject:
             self.year_stats['% succ'][year_ind] = perc_success
             self.year_stats['avg pts per app'][year_ind] = pts_per_app
 
-
     def print_year_stats(self):
         """Prints all the year stats as rows"""
         # first print the header
