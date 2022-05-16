@@ -27,7 +27,7 @@ class YearStat:
         """Determines the weighted average of the points spent during the application. Requires an input that is the "total weighted
         points", which is just the point category * number of applicants in that category summed over all the point categories."""
         if self._applicants != 0:
-            self._avg_pts_per_app = round(total_weighted_pts / self._applicants * 100, 1)
+            self._avg_pts_per_app = round(total_weighted_pts / self._applicants, 2)
 
     def convert_to_dict(self):
         return {
