@@ -13,8 +13,8 @@ class TagObject:
         self.start = start_year
         self.end = end_year
         self.residency = residency.upper()
-        self.year_stats = []
-        self.point_stats = []
+        self.year_stats = [TagYearStat.YearStat(year) for year in range(self.start, self.end+1)]
+        self.point_stats = [TagPointStat.PointStat(self.end, point) for point in range(21)]
         
         self.exists = self.simple_search()
 
@@ -75,15 +75,13 @@ class TagObject:
 
         # now loop through mongo query and create a year stat object for each stat, add it to the list of year stats
         for stat in stats:
-            new_yr_obj = TagYearStat.YearStat(stat['_id']['year'])
+            yr_stat_obj = self.year_stats[stat['_id']['year'] - self.start]
             
-            new_yr_obj.set_apps(stat['sum_apps'])
-            new_yr_obj.set_successes(stat['sum_tags'])
-            new_yr_obj.set_pts_spent(stat['sum_pts'])
-            new_yr_obj.set_perc_success()
-            new_yr_obj.set_avg_pts_per_app(stat['sum_wa_pts'])
-            
-            self.year_stats.append(new_yr_obj)
+            yr_stat_obj.set_apps(stat['sum_apps'])
+            yr_stat_obj.set_successes(stat['sum_tags'])
+            yr_stat_obj.set_pts_spent(stat['sum_pts'])
+            yr_stat_obj.set_perc_success()
+            yr_stat_obj.set_avg_pts_per_app(stat['sum_wa_pts'])
 
     def query_point_stats(self):
         """Queries all the points stats desired. Converts the output to a point stat object and adds point stat object
@@ -111,11 +109,10 @@ class TagObject:
 
         # now loop through pt_stats and create a new object for each result, add to point_stat list
         for stat in pt_stats:
-            new_pts_obj = TagPointStat.PointStat(self.end, stat['_id']['points'])
-            new_pts_obj.set_apps(stat['sum_apps'])
-            new_pts_obj.set_successes(stat['sum_tags'])
-            new_pts_obj.set_perc_success()
-            self.point_stats.append(new_pts_obj)
+            pts_stat_obj = self.point_stats[stat['_id']['points']]
+            pts_stat_obj.set_apps(stat['sum_apps'])
+            pts_stat_obj.set_successes(stat['sum_tags'])
+            pts_stat_obj.set_perc_success()
 
     def get_stats_dict_format(self, stat_list):
         new_list = [0] * len(stat_list)
