@@ -30,6 +30,12 @@ class PointStat:
         if num > 0:
             self._next_years_apps = num
 
+    def get_applicants(self):
+        return self._applicants
+
+    def get_successes(self):
+        return self._successes
+
     def convert_to_dict(self):
         return {
             'year': self.year,

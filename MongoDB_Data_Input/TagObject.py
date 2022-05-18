@@ -118,8 +118,21 @@ class TagObject:
 
     def predict_applicants(self):
         """Calls a microservice with requests API to determine applicants for next year"""
-        last_years_apps = [stat.applicants for stat in self.point_stats]
-        next_years_apps = []
+        last_years_apps = [stat.get_applicants() for stat in self.point_stats]
+        last_years_successes = [stat.get_successes() for stat in self.point_stats]
+        request_data = {
+            'prevYearApplication': last_years_apps, 
+            'prevYearSuccess': last_years_successes
+        }
+
+        r = requests.get('http://localhost:58585/calculate_odds', data=request_data)
+        resp_body = r.json()
+        
+        try:
+            next_years_apps = resp_body['calculated']
+        except KeyError:
+            next_years_apps = [0] * 21
+        
         for i, point_stat in enumerate(self.point_stats):
             point_stat.set_next_years_apps(next_years_apps[i])
 
