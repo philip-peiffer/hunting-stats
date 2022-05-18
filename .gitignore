@@ -1,5 +1,2 @@
 # added by PKLP
-./.idea/
-./MongoDB_Data_Input/.env
-/MongoDB_Data_Input/scratch.py
-/MongoDB_Data_Input/__pycache__/
+/.idea/

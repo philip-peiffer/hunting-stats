@@ -1,19 +1,6 @@
-import pymongo
+some_list = [1, 2, 3, 4]
 
-# connect to the collection that we would like to query
-connection = pymongo.MongoClient()
-db = connection.hunting_research
-collection = db.drawing_results
+for item, i in enumerate(some_list):
+    print(i)
 
-def load_non_residents():
-    pipeline = [
-        {
-            '$match': {'tag_num': '410-20'}
-        }
-    ]
-
-    results = collection.aggregate(pipeline)
-
-    print(list(results))
-
-load_non_residents()
+print(some_list)
