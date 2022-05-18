@@ -2,6 +2,7 @@
 import pymongo
 import TagPointStat
 import TagYearStat
+import requests
 
 class TagObject:
 
@@ -21,6 +22,7 @@ class TagObject:
         if not simple_search:
             self.query_year_stats()
             self.query_point_stats()
+            self.predict_applicants()
         
 
     def simple_search(self):
@@ -113,6 +115,13 @@ class TagObject:
             pts_stat_obj.set_apps(stat['sum_apps'])
             pts_stat_obj.set_successes(stat['sum_tags'])
             pts_stat_obj.set_perc_success()
+
+    def predict_applicants(self):
+        """Calls a microservice with requests API to determine applicants for next year"""
+        last_years_apps = [stat.applicants for stat in self.point_stats]
+        next_years_apps = []
+        for i, point_stat in enumerate(self.point_stats):
+            point_stat.set_next_years_apps(next_years_apps[i])
 
     def get_stats_dict_format(self, stat_list):
         new_list = [0] * len(stat_list)

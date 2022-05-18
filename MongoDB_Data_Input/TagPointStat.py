@@ -9,6 +9,7 @@ class PointStat:
         self._applicants = 0
         self._successes = 0
         self._percent_successful = 0
+        self._next_years_apps = 0
 
     def set_apps(self, applicants):
         self._applicants = applicants
@@ -25,6 +26,10 @@ class PointStat:
         if self._applicants != 0:
             self._percent_successful = round(self._successes / self._applicants * 100, 1)
 
+    def set_next_years_apps(self, num):
+        if num > 0:
+            self._next_years_apps = num
+
     def convert_to_dict(self):
         return {
             'year': self.year,
@@ -32,5 +37,6 @@ class PointStat:
             'applicants': self._applicants,
             'pts spent': self._pts_spent,
             'successes': self._successes,
-            '% success': self._percent_successful
+            '% success': self._percent_successful,
+            'future apps': self._next_years_apps
         }
