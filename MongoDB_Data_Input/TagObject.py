@@ -117,15 +117,9 @@ class TagObject:
             new_pts_obj.set_perc_success()
             self.point_stats.append(new_pts_obj)
 
-    def get_point_stats_dict_format(self):
-        new_list = [0] * len(self.point_stats)
-        for i, stat in enumerate(self.point_stats):
-            new_list[i] = stat.convert_to_dict()
-        return new_list
-
-    def get_year_stats_dict_format(self):
-        new_list = [0] * len(self.year_stats)
-        for i, stat in enumerate(self.year_stats):
+    def get_stats_dict_format(self, stat_list):
+        new_list = [0] * len(stat_list)
+        for i, stat in enumerate(stat_list):
             new_list[i] = stat.convert_to_dict()
         return new_list
 
@@ -135,6 +129,6 @@ class TagObject:
             "species": self.species,
             "years": [num for num in range(self.start, self.end + 1)],
             "residency": self.residency,
-            "year stats": self.get_year_stats_dict_format(),
-            "point stats": self.get_point_stats_dict_format(),
+            "year stats": self.get_stats_dict_format(self.year_stats),
+            "point stats": self.get_stats_dict_format(self.point_stats),
         }
