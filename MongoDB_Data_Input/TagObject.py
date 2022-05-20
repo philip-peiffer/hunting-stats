@@ -125,7 +125,7 @@ class TagObject:
             'prevYearSuccess': last_years_successes
         }
 
-        r = requests.get('http://localhost:58585/calculate_odds', data=request_data)
+        r = requests.get('http://localhost:58585/calculate_odds', json=request_data)
         resp_body = r.json()
         
         try:
