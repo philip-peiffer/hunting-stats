@@ -5,7 +5,6 @@ from TagObject import TagObject
 from DrawSimul import DrawSimul
 from flask import Flask, jsonify
 import pymongo
-import requests
 
 # initialize the app
 app = Flask(__name__)
