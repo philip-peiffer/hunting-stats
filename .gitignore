@@ -1,3 +1,6 @@
 # added by PKLP
 /.idea/
 /Forecast_Applicants
+.env
+scratch*/
+__pycache__/
