@@ -6,7 +6,7 @@ num_years = 5
 class RegionsObject:
 
     def __init__(self, residency: str, species: str, doc_collection: pymongo.collection.Collection,
-                 end_year: int, region: int):
+                 end_year: int, region: int, query_data: True):
         self.residency = residency.upper()
         self.species = species.upper()
         self.doc_coll = doc_collection

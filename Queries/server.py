@@ -14,6 +14,9 @@ connection = pymongo.MongoClient()
 db = connection.hunting_research
 collection = db.drawing_results
 
+# define constants used throughout 
+END_YEAR = 2021
+
 def reformat_residency(res_choice: str):
     """Reformats the residency choice to match what is required for the queries"""
     if res_choice[:2].upper() == "NON":
@@ -37,7 +40,7 @@ def get_region_stats(res_choice, spec_choice):
     res_choice = reformat_residency(res_choice)
 
     # create a region object that has all the regions for the given species
-    region = RegionsObject(res_choice, spec_choice, collection, 2021)
+    region = RegionsObject(res_choice, spec_choice, collection, END_YEAR)
     region.set_data()
 
     # send the appropriate data back
@@ -50,10 +53,17 @@ def get_district_stats(res_choice, spec_choice, reg_choice):
 
     res_choice = reformat_residency(res_choice)
 
-    # create a districts object that has all the districts for the given species
-    districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
-    districts.query_districts_data()
-    return {'data': districts.year_stats}
+    # create a region object and query for the districts within that region
+    results = RegionsObject(res_choice, spec_choice, collection, END_YEAR, reg_choice, False).get_districts()
+
+    # loop through districts and create a district object for each entry, querying stats
+    districts = []
+    for result in results:
+        district = result['_id']['district']
+        dist_obj = DistObject(collection, spec_choice, res_choice, district, END_YEAR)
+        districts.append(dist_obj.convert_to_dict())
+    
+    return {'data': districts}
 
 
 @app.route('/residency/<res_choice>/species/<spec_choice>/region/<reg_choice>/district/<dist_choice>/tags')
@@ -62,14 +72,14 @@ def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
     res_choice = reformat_residency(res_choice)
 
     # get a list of tags within the district
-    districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
+    districts = DistObject(collection, spec_choice, res_choice, reg_choice, END_YEAR, False)
     tag_nums = districts.get_tags(dist_choice)
 
     # loop through the tags and run queries on each tag, adding the results to the tags list
     tags = []
     for result in tag_nums:
         tag_num = result['_id']['tag num']
-        tag_obj = TagObject(tag_num, collection, spec_choice, 2017, 2021, res_choice)
+        tag_obj = TagObject(tag_num, collection, spec_choice, 2017, END_YEAR, res_choice)
         tags.append(tag_obj.convert_to_dict())
 
     return {'data': tags}
@@ -80,7 +90,7 @@ def get_tag(res_choice, spec_choice, tag_id):
     
     res_choice = reformat_residency(res_choice)
 
-    tag_obj = TagObject(tag_id, collection, spec_choice, 2017, 2021, res_choice, True)
+    tag_obj = TagObject(tag_id, collection, spec_choice, 2017, END_YEAR, res_choice, True)
     return {'tag exists': tag_obj.exists}
 
 
