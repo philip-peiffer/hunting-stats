@@ -1,7 +1,7 @@
 # This file defines the object for the tag level queries/stats
 import pymongo
-import TagPointStat
-import TagYearStat
+import PointStat
+import YearStat
 import requests
 
 class TagObject:
@@ -14,8 +14,8 @@ class TagObject:
         self.start = start_year
         self.end = end_year
         self.residency = residency.upper()
-        self.year_stats = [TagYearStat.YearStat(year) for year in range(self.start, self.end+1)]
-        self.point_stats = [TagPointStat.PointStat(self.end, point) for point in range(21)]
+        self.year_stats = [YearStat.YearStat(year) for year in range(self.start, self.end+1)]
+        self.point_stats = [PointStat.PointStat(self.end, point) for point in range(21)]
         
         self.exists = self.simple_search()
 
