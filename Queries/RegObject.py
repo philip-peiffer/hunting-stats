@@ -73,3 +73,20 @@ class RegionsObject:
             new_obj['avg pts per app'][year_ind] = round(result['wgt_avg_helper'] / result['num apps'], 1)
 
         self.data.append(new_obj)
+
+    def get_districts(self):
+        """Gets the districts for the given region"""
+        pipeline = [
+            {
+                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region,
+                           'dwg_year': {'$gte': self.start, '$lte': self.end}}
+            },
+            {
+                '$group': {'_id': {'dist num': '$district'}}
+            },
+            {
+                '$sort': {'_id': pymongo.ASCENDING}
+            }
+        ]
+        results = self.doc_coll.aggregate(pipeline)
+        return list(results)
