@@ -83,7 +83,7 @@ class RegionsObject:
                            'dwg_year': {'$gte': self.start, '$lte': self.end}}
             },
             {
-                '$group': {'_id': {'dist num': '$district'}}
+                '$group': {'_id': {'district': '$district'}}
             },
             {
                 '$sort': {'_id': pymongo.ASCENDING}

@@ -35,10 +35,10 @@ class DistObject:
             },
             {
                 '$group': {'_id': {'year': '$dwg_year'},
-                           'num apps': {'$sum': '$applicants'},
-                           'num tags': {'$sum': '$successes'},
-                           'pts spent': {'$sum': '$total_points'},
-                           'wgt_avg_helper': {'$sum': '$wa_points'}
+                           'sum_apps': {'$sum': '$applicants'},
+                           'sum_tags': {'$sum': '$successes'},
+                           'sum_pts': {'$sum': '$total_points'},
+                           'sum_wa_pts': {'$sum': '$wa_points'}
                            }
             },
             {
@@ -83,7 +83,7 @@ class DistObject:
 
     def convert_to_dict(self):
         return {
-            "district": self.tag,
+            "district": self.district,
             "species": self.species,
             "years": [num for num in range(self.start, self.end + 1)],
             "residency": self.residency,
