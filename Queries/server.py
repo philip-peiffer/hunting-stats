@@ -14,6 +14,13 @@ connection = pymongo.MongoClient()
 db = connection.hunting_research
 collection = db.drawing_results
 
+def reformat_residency(res_choice: str):
+    """Reformats the residency choice to match what is required for the queries"""
+    if res_choice[:2].upper() == "NON":
+        return "nonresident"
+    else:
+        return "resident"
+
 
 # define CORS policy
 @app.after_request
@@ -27,8 +34,7 @@ def after_request(response):
 @app.route('/residency/<res_choice>/species/<spec_choice>/regions_stats')
 def get_region_stats(res_choice, spec_choice):
 
-    res_choice = res_choice.split(' ')
-    res_choice = ''.join(res_choice)
+    res_choice = reformat_residency(res_choice)
 
     # create a region object that has all the regions for the given species
     region = RegionsObject(res_choice, spec_choice, collection, 2021)
@@ -42,8 +48,7 @@ def get_region_stats(res_choice, spec_choice):
 @app.route('/residency/<res_choice>/species/<spec_choice>/region/<reg_choice>/districts')
 def get_district_stats(res_choice, spec_choice, reg_choice):
 
-    res_choice = res_choice.split(' ')
-    res_choice = ''.join(res_choice)
+    res_choice = reformat_residency(res_choice)
 
     # create a districts object that has all the districts for the given species
     districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
@@ -54,8 +59,7 @@ def get_district_stats(res_choice, spec_choice, reg_choice):
 @app.route('/residency/<res_choice>/species/<spec_choice>/region/<reg_choice>/district/<dist_choice>/tags')
 def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
 
-    res_choice = res_choice.split(' ')
-    res_choice = ''.join(res_choice)
+    res_choice = reformat_residency(res_choice)
 
     # get a list of tags within the district
     districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
@@ -73,8 +77,8 @@ def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
 
 @app.route('/residency/<res_choice>/species/<spec_choice>/tags/<tag_id>')
 def get_tag(res_choice, spec_choice, tag_id):
-    res_choice = res_choice.split(' ')
-    res_choice = ''.join(res_choice)
+    
+    res_choice = reformat_residency(res_choice)
 
     tag_obj = TagObject(tag_id, collection, spec_choice, 2017, 2021, res_choice, True)
     return {'tag exists': tag_obj.exists}
