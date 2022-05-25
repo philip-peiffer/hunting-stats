@@ -48,7 +48,7 @@ def get_district_stats(res_choice, spec_choice, reg_choice):
     # create a districts object that has all the districts for the given species
     districts = DistObject(collection, spec_choice, res_choice, reg_choice, 2021)
     districts.query_districts_data()
-    return {'data': districts.data}
+    return {'data': districts.year_stats}
 
 
 @app.route('/residency/<res_choice>/species/<spec_choice>/region/<reg_choice>/district/<dist_choice>/tags')

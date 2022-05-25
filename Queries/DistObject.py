@@ -1,44 +1,40 @@
 # This file defines the object for the district level queries/stats
 import pymongo
+import YearStat
 
 num_years = 5
 
 class DistObject:
 
-    def __init__(self, doc_collection: pymongo.collection.Collection, species: str, residency: str, region: str,
-                 end_year: int):
+    def __init__(self, doc_collection: pymongo.collection.Collection, species: str, residency: str, district: str,
+                 end_year: int, query_data=True):
         self.start = end_year - num_years + 1
         self.end = end_year
         self.years = [num for num in range(self.start, self.end + 1)]
-        self.region = region
+        self.district = district
         self.doc_coll = doc_collection
         self.species = species.upper()
         self.residency = residency.upper()
-        self.data = []
-        # format for data array will be array of dictionaries as follows:
-        # self.data = {district: XXX,
-        #              years: XXX,
-        #              district_data: {
-        #                               num apps: [],
-        #                               num tags: [], 
-        #                               pts spent: [],
-        #                               avg pts per app: []
-        #                              }
-        #            }
+        self.year_stats = None
+
+        if query_data:
+            self.year_stats = [YearStat.YearStat(year) for year in self.years]
+            self.query_district_data()
+        
     
-    def query_districts_data(self):
+    def query_district_data(self):
         """This function fetches the data for the districts within the region defined in the properties above and formats it to fit
         within the self.data list."""
         pipeline = [
             {
-                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region,
+                '$match': {'residency': self.residency, 'species': self.species, 'district': self.district,
                            'dwg_year': {'$gte': self.start, '$lte': self.end}}
             },
             {
                 '$set': {'wa_points': {'$multiply': ['$applicants', '$point_val']}}
             },
             {
-                '$group': {'_id': {'district': '$district', 'year': '$dwg_year'},
+                '$group': {'_id': {'year': '$dwg_year'},
                            'num apps': {'$sum': '$applicants'},
                            'num tags': {'$sum': '$successes'},
                            'pts spent': {'$sum': '$total_points'},
@@ -52,39 +48,21 @@ class DistObject:
 
         results = self.doc_coll.aggregate(pipeline)
 
-        # loop through results to get into correct dictionary format
-        curr_dist = None
-        for result in results:
-            if curr_dist is None or result['_id']['district'] != curr_dist['district']:
-                if curr_dist is not None:
-                    self.data.append(curr_dist)
-                
-                curr_dist = {
-                    'district': result['_id']['district'],
-                    'years': self.years,
-                    'district data': {
-                        'num apps': [0] * num_years,
-                        'num tags': [0] * num_years,
-                        'pts spent': [0] * num_years,
-                        'avg pts per app': [0] * num_years
-                    }
-                }
+        # loop through results, assigning values to YearStat objects
+        for stat in results:
+            yr_stat_obj = self.year_stats[stat['_id']['year'] - self.start]
             
-            year_ind = result['_id']['year'] - self.start
-            avg_pts = round(result['wgt_avg_helper'] / result['num apps'], 1)
+            yr_stat_obj.set_apps(stat['sum_apps'])
+            yr_stat_obj.set_successes(stat['sum_tags'])
+            yr_stat_obj.set_pts_spent(stat['sum_pts'])
+            yr_stat_obj.set_perc_success()
+            yr_stat_obj.set_avg_pts_per_app(stat['sum_wa_pts'])       
 
-            curr_dist['district data']['num apps'][year_ind] = result['num apps']
-            curr_dist['district data']['num tags'][year_ind] = result['num tags']
-            curr_dist['district data']['pts spent'][year_ind] = result['pts spent']
-            curr_dist['district data']['avg pts per app'][year_ind] = avg_pts
-        
-        self.data.append(curr_dist)
-
-    def get_tags(self, district: str):
+    def get_tags(self):
         """This function gets the tags within the district passed in as an argument"""
         pipeline = [
             {
-                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region, 'district': district,
+                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region, 'district': self.district,
                            'dwg_year': {'$gte': self.start, '$lte': self.end}}
             },
             {
@@ -97,3 +75,17 @@ class DistObject:
         results = self.doc_coll.aggregate(pipeline)
         return list(results)
 
+    def get_stats_dict_format(self, stat_list):
+            new_list = [0] * len(stat_list)
+            for i, stat in enumerate(stat_list):
+                new_list[i] = stat.convert_to_dict()
+            return new_list
+
+    def convert_to_dict(self):
+        return {
+            "district": self.tag,
+            "species": self.species,
+            "years": [num for num in range(self.start, self.end + 1)],
+            "residency": self.residency,
+            "year stats": self.get_stats_dict_format(self.year_stats),
+        }
