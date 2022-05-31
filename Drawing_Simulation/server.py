@@ -16,7 +16,7 @@ def after_request(response):
 
 
 # define routes
-@app.route('/predictions')
+@app.route('/predictions', methods=["POST"])
 def get_point_predictions():
 
     # get the predictions array that microservice calculated and number of tags from body of request
@@ -56,4 +56,4 @@ def get_point_predictions():
     return json.jsonify(request_data)
 
 
-app.run('127.0.0.1', 58555)
+app.run(debug=True, host='localhost', port=58555)
