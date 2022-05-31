@@ -1,8 +1,8 @@
 import DrawSimul as ds 
-from flask import Flask, request, json
+import flask
 
 # initialize the app
-app = Flask(__name__)
+app = flask.Flask(__name__)
 
 # define constants 
 NUM_DWGS = 10
@@ -16,11 +16,18 @@ def after_request(response):
 
 
 # define routes
+@app.route('/predictions', methods=["OPTIONS"])
+def cors_preflight():
+    res = flask.Response()
+    res.access_control_allow_headers = '*'
+    return res
+
+
 @app.route('/predictions', methods=["POST"])
 def get_point_predictions():
 
     # get the predictions array that microservice calculated and number of tags from body of request
-    request_data = request.get_json()
+    request_data = flask.request.get_json()
     next_year_apps = request_data["calculated"]
     num_tags = request_data["num tags"]
     tag_id = request_data["tag"]
@@ -53,7 +60,7 @@ def get_point_predictions():
         request_data["total tags obtained"] = total_results
         request_data["calculated success perc"] = perc_chance_of_success
 
-    return json.jsonify(request_data)
+    return flask.json.jsonify(request_data)
 
 
 app.run(debug=True, host='localhost', port=58555)
