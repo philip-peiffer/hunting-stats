@@ -1,12 +1,13 @@
 # This file defines the object for the region level queries/stats
 import pymongo
+import YearStat
 
 num_years = 5
 
 class RegionsObject:
 
     def __init__(self, residency: str, species: str, doc_collection: pymongo.collection.Collection,
-                 end_year: int, region: int, query_data: True):
+                 end_year: int, region: int, query_data=True):
         self.residency = residency.upper()
         self.species = species.upper()
         self.doc_coll = doc_collection
@@ -14,26 +15,29 @@ class RegionsObject:
         self.start = end_year - num_years + 1
         self.end = end_year
         self.years = [num for num in range(self.start, self.end + 1)]
-        self.data = []
+        self.year_stats = None
 
-    def set_data(self):
-        """Sets self.data with data returned by pymongo. The query filters on residency, species,
-        and years. It then groups by region to get aggregated stats"""
+        if query_data:
+            self.year_stats = [YearStat.YearStat(year) for year in self.years]
+            self.query_region_data()
 
+    def query_region_data(self):
+        """This function fetches the data for the districts within the region defined in the properties above and formats it to fit
+        within the self.data list."""
         pipeline = [
             {
-                '$match': {'residency': self.residency, 'species': self.species,
+                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region,
                            'dwg_year': {'$gte': self.start, '$lte': self.end}}
             },
             {
                 '$set': {'wa_points': {'$multiply': ['$applicants', '$point_val']}}
             },
             {
-                '$group': {'_id': {'region': '$region', 'year': '$dwg_year'},
-                           'num apps': {'$sum': '$applicants'},
-                           'num tags': {'$sum': '$successes'},
-                           'pts spent': {'$sum': '$total_points'},
-                           'wgt_avg_helper': {'$sum': '$wa_points'}
+                '$group': {'_id': {'year': '$dwg_year'},
+                           'sum_apps': {'$sum': '$applicants'},
+                           'sum_tags': {'$sum': '$successes'},
+                           'sum_pts': {'$sum': '$total_points'},
+                           'sum_wa_pts': {'$sum': '$wa_points'}
                            }
             },
             {
@@ -43,37 +47,15 @@ class RegionsObject:
 
         results = self.doc_coll.aggregate(pipeline)
 
-        # now loop through results and assign each batch to data
-        new_obj = {
-            'region': None,
-            'num apps': [],
-            'num tags': [],
-            'pts spent': [],
-            'avg pts per app': [],
-            'years': self.years
-        }
-
-        for result in results:
-            year_ind = result['_id']['year'] - self.start
-
-            if result['_id']['region'] != new_obj['region']:
-                if new_obj['region'] is not None:
-                    self.data.append(new_obj)
-                new_obj = {
-                    'region': result['_id']['region'],
-                    'num apps': [0] * num_years,
-                    'num tags': [0] * num_years,
-                    'pts spent': [0] * num_years,
-                    'avg pts per app': [0] * num_years,
-                    'years': self.years
-                }
-
-            new_obj['num apps'][year_ind] = result['num apps']
-            new_obj['num tags'][year_ind] = result['num tags']
-            new_obj['pts spent'][year_ind] = result['pts spent']
-            new_obj['avg pts per app'][year_ind] = round(result['wgt_avg_helper'] / result['num apps'], 1)
-
-        self.data.append(new_obj)
+        # loop through results, assigning values to YearStat objects
+        for stat in results:
+            yr_stat_obj = self.year_stats[stat['_id']['year'] - self.start]
+            
+            yr_stat_obj.set_apps(stat['sum_apps'])
+            yr_stat_obj.set_successes(stat['sum_tags'])
+            yr_stat_obj.set_pts_spent(stat['sum_pts'])
+            yr_stat_obj.set_perc_success()
+            yr_stat_obj.set_avg_pts_per_app(stat['sum_wa_pts']) 
 
     def get_districts(self):
         """Gets the districts for the given region"""
@@ -91,3 +73,18 @@ class RegionsObject:
         ]
         results = self.doc_coll.aggregate(pipeline)
         return list(results)
+
+    def get_stats_dict_format(self, stat_list):
+            new_list = [0] * len(stat_list)
+            for i, stat in enumerate(stat_list):
+                new_list[i] = stat.convert_to_dict()
+            return new_list
+
+    def convert_to_dict(self):
+        return {
+            "region": self.region,
+            "species": self.species,
+            "years": [num for num in range(self.start, self.end + 1)],
+            "residency": self.residency,
+            "year stats": self.get_stats_dict_format(self.year_stats),
+        }

@@ -39,11 +39,12 @@ def get_region_stats(res_choice, spec_choice):
     res_choice = reformat_residency(res_choice)
 
     # create a region object that has all the regions for the given species
-    region = RegionsObject(res_choice, spec_choice, collection, END_YEAR)
-    region.set_data()
-
+    return_object = {'data': []}
+    for region in range(1, 8):
+        new_region = RegionsObject(res_choice, spec_choice, collection, END_YEAR, str(region))
+        return_object['data'].append(new_region.convert_to_dict())
+    
     # send the appropriate data back
-    return_object = {'data': region.data}
     return return_object
 
 
