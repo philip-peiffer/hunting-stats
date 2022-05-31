@@ -62,7 +62,7 @@ class DistObject:
         """This function gets the tags within the district passed in as an argument"""
         pipeline = [
             {
-                '$match': {'residency': self.residency, 'species': self.species, 'region': self.region, 'district': self.district,
+                '$match': {'residency': self.residency, 'species': self.species, 'district': self.district,
                            'dwg_year': {'$gte': self.start, '$lte': self.end}}
             },
             {

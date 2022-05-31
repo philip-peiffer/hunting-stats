@@ -71,8 +71,8 @@ def get_tag_stats(res_choice, spec_choice, reg_choice, dist_choice):
     res_choice = reformat_residency(res_choice)
 
     # get a list of tags within the district
-    districts = DistObject(collection, spec_choice, res_choice, reg_choice, END_YEAR, False)
-    tag_nums = districts.get_tags(dist_choice)
+    district = DistObject(collection, spec_choice, res_choice, dist_choice, END_YEAR, False)
+    tag_nums = district.get_tags()
 
     # loop through the tags and run queries on each tag, adding the results to the tags list
     tags = []
