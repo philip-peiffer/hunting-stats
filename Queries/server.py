@@ -2,7 +2,6 @@
 from RegObject import RegionsObject
 from DistObject import DistObject
 from TagObject import TagObject
-from DrawSimul import DrawSimul
 from flask import Flask, jsonify
 import pymongo
 

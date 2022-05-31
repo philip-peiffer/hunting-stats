@@ -94,7 +94,7 @@ class DrawSimul:
                     new_app.apps -= 1
                 app_id += 1
 
-        for i in range(5):
+        for i in range(2):
             self.apps_bag.randomize_bag()
 
     def run_drawing(self):
@@ -103,7 +103,8 @@ class DrawSimul:
         self.add_applicants_to_bag()
 
         # draw random applicants from the bag until you hit the number of tags
-        for tag_num in range(1, self.num_tags + 1):
+        # NOTE - self.draw_rand_id retries automatically if you re-draw a certain person
+        for _ in range(self.num_tags):
             self.draw_rand_id()
 
         return self.dwg_results
