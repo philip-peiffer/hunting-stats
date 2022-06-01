@@ -94,4 +94,12 @@ def get_tag(res_choice, spec_choice, tag_id):
     return {'tag exists': tag_obj.exists}
 
 
+@app.route('/residency/<res_choice>/species/<spec_choice>/tags/<tag_num>/stats')
+def get_ind_tag_stats(res_choice, spec_choice, tag_num):
+    # create a tag object for the queried tag
+    tag_obj = TagObject(tag_num, collection, spec_choice, 2017, END_YEAR, res_choice)
+    data = tag_obj.convert_to_dict()
+
+    return ({'data': [data]})
+
 app.run()
