@@ -15,4 +15,4 @@ subprocess.Popen(['py', forecast_path], creationflags=subprocess.CREATE_NEW_CONS
 
 print("Starting Drawing Simulation Server...")
 ds_path = curr_dir + '\Drawing_Simulation\server.py'
-subprocess.Popent(['py', ds_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+subprocess.Popen(['py', ds_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
