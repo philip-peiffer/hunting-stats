@@ -1,8 +1,8 @@
 # Description: This program adds documents to a mongoDB database for moose, sheep, and goat drawing results
-from pymongo import MongoClient     # for connection to mongo
+import pymongo                      # for connection to mongo
 import os                           # for opening/writing files
 import pandas as pd                 # for reading/writing excel files
-import dns                          # for connection to mongo
+from dotenv import load_dotenv      # for .env file vars
 
 
 # define function to process the data in each file
@@ -109,19 +109,20 @@ def parse_header(header_line: str):
 
 
 def main():
-    # connect to the mongoDB server -- uses Localhost port 27017 by default
-    connection = MongoClient()
+    load_dotenv()
+    MONGO_URI = os.getenv("MONGODB_URI")
+    CLEAR_COLLECTIONS = True if os.getenv("CLEAR_COLLECTIONS").lower() == "true" else False
 
-    print(connection.list_database_names())
+    # connect to the mongoDB server -- uses Localhost port 27017 by default
+    client = pymongo.MongoClient(MONGO_URI)
 
     # access the database
-    db = connection.hunting_research
+    db = client.hunting_research
 
     # access the collection for drawing results
     collection = db.drawing_results
 
-    clear_collection = False
-    if clear_collection:
+    if CLEAR_COLLECTIONS:
         collection.drop()
 
     # get the directory path from the user
@@ -204,7 +205,7 @@ def main():
                                 data_for_mongo = False
 
     # close the connection
-    connection.close()
+    client.close()
 
 
 if __name__ == "__main__":
