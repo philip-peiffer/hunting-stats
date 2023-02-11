@@ -3,139 +3,162 @@ import pymongo                      # for connection to mongo
 import os                           # for opening/writing files
 import pandas as pd                 # for reading/writing excel files
 from dotenv import load_dotenv      # for .env file vars
+import logging
+from db import HuntingDatabase
+from drawing_line import DrawingLine
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger()
 
 
-# define function to process the data in each file
-def process_line(year: int, line: list, data_indices: dict):
-    """
-    This function takes 2 parameters, the year of the current file, and an array that contains the contents of a
-    line from a file. The function processes the data in the line depending on the year. FWP changes formats of
-    data from the drawings every few years, so data processing requires checking the year to determine where the
-    data lies. The function returns a list of normalized data (only the data that we care about) so that the data
-    can be handled the same after the function call.
-    The returned data list is as follows: [year, license number, license type, tag number, residency, point value, number of
-    applicants, number of successes]
-    :param data_indices:
-    :param year: integer
-    :param line: list
-    :return: list of "normalized data"
-    """
-    imp_data = []
-    # skip any entries that don't have residency assigned to them - these are totals, we'll use mongo to total
-    if line[data_indices['residency']] == '' or line[data_indices['residency']] == ' ':
-        return imp_data
+class ParseDrawingFile:
 
-    # grab the data indexes from the line that we care about
-    else:
-        # expand the item type - description columns if necessary (these columns contain both the license number
-        # and license type with a " - " between them
-        license_num = line[data_indices['license_num']]
-        license_type = line[data_indices['license_type']]
-        if data_indices['license_num'] == data_indices['license_type']:
-            license_num, license_type = license_num.split(' - ')
+    def __init__(self, year, csv_file) -> None:
+        self._year = year
+        self._file = csv_file
+        self._header = dict()
+        self._processed_lines = []
+        self.log = logging.getLogger("ParseDrawingFile")
 
-        # check the tag_num field to weed out extraneous info
-        tag_num = line[data_indices['tag_num']]
-        if len(line[data_indices['tag_num']]) > 6:
-            tag_num = line[data_indices['tag_num']].split(' ')[0]
+        self.log.debug(f"Processing {self._year}: {self._file.name}")
+    
 
-        # check the point_val field, if it's blank then assign it to 0 points
-        point_val = line[data_indices['point_val']]
-        if point_val == '' or point_val == ' ':
-            point_val = 0
+    def parse_file(self):
+        for line in self._file:
+            # headers all have "Item Type" in one of the columns, so skip until you hit that header
+            if line.find("Item") != -1:
+                self._parse_header(line)
+            
+            if not self._header:
+                continue
+
+            self._processed_lines.append(DrawingLine(line).process_line())
+
+        
+    
+    def _parse_header(self, header):
+        """
+        This function parses 
+        """
+
+        # loop through the items in the header_array, searching for keywords
+        for i, col in enumerate(header):
+            if col.find("Item Type") != -1:
+                self._header["license_num"] = i
+
+            elif col.find("Description") != -1:
+                self._header["license_type"] = i
+
+            elif col.find("District") != -1:
+                self._header["tag_num"] = i
+
+            elif col.find("Residency") != -1:
+                self._header["residency"] = i
+
+            elif col.find("Points") != -1:
+                self._header["point_val"] = i
+
+            elif col.find("Appl") != -1:
+                self._header["applicants"] = i
+
+            elif col.find("# Success") != -1 or col.find("Number of Success") != -1:
+                self._header["successes"] = i
+
+
+    # define function to process the data in each file
+    def process_line(self, year: int, line: list, data_indices: dict):
+        """
+        This function takes 2 parameters, the year of the current file, and an array that contains the contents of a
+        line from a file. The function processes the data in the line depending on the year. FWP changes formats of
+        data from the drawings every few years, so data processing requires checking the year to determine where the
+        data lies. The function returns a list of normalized data (only the data that we care about) so that the data
+        can be handled the same after the function call.
+        The returned data list is as follows: [year, license number, license type, tag number, residency, point value, number of
+        applicants, number of successes]
+        :param data_indices:
+        :param year: integer
+        :param line: list
+        :return: list of "normalized data"
+        """
+        imp_data = []
+        # skip any entries that don't have residency assigned to them - these are totals, we'll use mongo to total
+        if line[data_indices['residency']] == '' or line[data_indices['residency']] == ' ':
+            return imp_data
+
+        # grab the data indexes from the line that we care about
         else:
-            point_val = int(float(point_val))
+            # expand the item type - description columns if necessary (these columns contain both the license number
+            # and license type with a " - " between them
+            license_num = line[data_indices['license_num']]
+            license_type = line[data_indices['license_type']]
+            if data_indices['license_num'] == data_indices['license_type']:
+                license_num, license_type = license_num.split(' - ')
 
-        # pull out species from license_type
-        species = license_type.split(' ')[0]
+            # check the tag_num field to weed out extraneous info
+            tag_num = line[data_indices['tag_num']]
+            if len(line[data_indices['tag_num']]) > 6:
+                tag_num = line[data_indices['tag_num']].split(' ')[0]
 
-        # pull out district from tag_num
-        district = tag_num.split('-')[0]
+            # check the point_val field, if it's blank then assign it to 0 points
+            point_val = line[data_indices['point_val']]
+            if point_val == '' or point_val == ' ':
+                point_val = 0
+            else:
+                point_val = int(float(point_val))
 
-        imp_data = [
-            year,
-            species,
-            int(license_num),
-            license_type,
-            district,
-            tag_num,
-            line[data_indices['residency']],
-            point_val,
-            int(line[data_indices['applicants']]),
-            int(line[data_indices['successes']])
-        ]
+            # pull out species from license_type
+            species = license_type.split(' ')[0]
 
-    return imp_data
+            # pull out district from tag_num
+            district = tag_num.split('-')[0]
 
+            imp_data = [
+                year,
+                species,
+                int(license_num),
+                license_type,
+                district,
+                tag_num,
+                line[data_indices['residency']],
+                point_val,
+                int(line[data_indices['applicants']]),
+                int(line[data_indices['successes']])
+            ]
 
-def parse_header(header_line: str):
-    """
-    This function requires 1 input - the header line as a string. The function parses the header line for keywords
-    to determine where the important data lies in a file. It then returns a dictionary with the important data
-    locations as values (the important data names are the keys).
-    :param header_line:
-    :return:
-    """
-    header_array = header_line.split(',')
-    data_locations = dict()
-
-    # loop through the items in the header_array, searching for keywords
-    i = 0
-    for header in header_array:
-        if header.find("Item Type") != -1:
-            data_locations["license_num"] = i
-
-        if header.find("Description") != -1:
-            data_locations["license_type"] = i
-
-        elif header.find("District") != -1:
-            data_locations["tag_num"] = i
-
-        elif header.find("Residency") != -1:
-            data_locations["residency"] = i
-
-        elif header.find("Points") != -1:
-            data_locations["point_val"] = i
-
-        elif header.find("Appl") != -1:
-            data_locations["applicants"] = i
-
-        elif header.find("# Success") != -1 or header.find("Number of Success") != -1:
-            data_locations["successes"] = i
-
-        i += 1
-
-    return data_locations
+        return imp_data
+        
 
 
-def main():
+def main(dry_run=False, test_move_files=False, test_connection=False, clear_coll=False):
     load_dotenv()
-    MONGO_URI = os.getenv("MONGODB_URI")
-    CLEAR_COLLECTIONS = True if os.getenv("CLEAR_COLLECTIONS").lower() == "true" else False
+    
+    NP_PATH = os.getenv("NP_PATH")
+    P_PATH = os.getenv("P_PATH")
 
     # connect to the mongoDB server -- uses Localhost port 27017 by default
-    client = pymongo.MongoClient(MONGO_URI)
+    db = HuntingDatabase()
 
-    # access the database
-    db = client.hunting_research
+    if test_connection:
+        return print(db.test_connection())
 
-    # access the collection for drawing results
-    collection = db.drawing_results
+    db.set_collection('hunting_research')
+    if clear_coll:
+        db.clear_collection()
 
-    if CLEAR_COLLECTIONS:
-        collection.drop()
-
-    # get the directory path from the user
-    root_path = "C:\\Users\\phili\\OneDrive\\Documents\\Hunting Research\\"
-    dir_name = input("Please enter directory name: ")
-    dir_path = root_path + dir_name
+    # get the species from the user
+    species = input("Please choose the species (elk, moose, sheep): ")
+    while species.lower() not in ["elk", "moose", "sheep"]:
+        print(f"Sorry, but {species} was an invalid choice. Please try again.")
+        species = input("Please choose the species (elk, moose, sheep): ")
+    dir_path = NP_PATH + species
 
     # open the directory
     with os.scandir(dir_path) as entries:
         for entry in entries:
             if entry.is_file():
-                entry_name_array = entry.name.split(' ')
-                entry_path = dir_path + '\\' + entry.name
+                year = entry.name[:4]
+                entry_path = f'{dir_path}/{entry.name}'
+                log.debug(f'Converting {entry_path} to csv...')
 
                 # skip all non excel files
                 if entry.name.find(".xls") == -1:
@@ -144,26 +167,23 @@ def main():
                 # open the file and use pandas to read it / convert it to csv
                 with open(entry_path, 'rb') as curr_file:
                     df = pd.read_excel(curr_file)
-                    new_file_path = dir_path + '\\' + entry_name_array[0] + ".csv"
+                    new_file_path = f'{dir_path}/{year}.csv'
                     df.to_csv(new_file_path)
 
+                # move the excel file to processed
+                move_path = f'{P_PATH}/{dir_name}'
+                log.debug(f'Moving {entry_path} to {move_path}')
+                os.system(f'mv \'{entry_path}\' {move_path}')
 
                 # for each csv file, loop through file lines, creating a new document for each line
                 with open(new_file_path, 'r') as csv_file:
-                    print("processing year: ", int(entry_name_array[0]))
+                    print(f'processing year: {year}')
                     data_chunk = []
                     data_locations = dict()
                     past_header = False
                     data_for_mongo = False
 
-                    for line in csv_file:
-                        # headers all have "Item Type" in one of the columns, so skip until you hit that header
-                        # once you hit the header, parse it to find out what indexes you should be using in order
-                        # to find the correct data since the format changes from year to year
-                        if line.find("Item") != -1:
-                            past_header = True
-                            data_locations = parse_header(line)
-                            continue
+                    
 
                         # split the line into the different columns
                         line_array = line.split(',')
@@ -171,7 +191,7 @@ def main():
                         # If we're past the header, we can finally process the data.
                         # File formats changed in 2017, so need to see what year we're in
                         if past_header:
-                            imp_data = process_line(int(entry_name_array[0]), line_array, data_locations)
+                            imp_data = process_line(int(year), line_array, data_locations)
 
                             # if imp_data contains data, add this data to chunk that we're going to upload to mongo
                             if imp_data:
@@ -205,8 +225,8 @@ def main():
                                 data_for_mongo = False
 
     # close the connection
-    client.close()
+    db.close_connection()
 
 
 if __name__ == "__main__":
-    main()
+    main(dry_run=True, test_move_files=True, test_connection=False, clear_coll=False)
